@@ -1,0 +1,29 @@
+# OPTIONAL upgrade: real vision embeddings.
+#
+#   pip install -r requirements.txt -r requirements-siglip.txt
+#   set AI_EMBEDDING_BACKEND=siglip   (or leave it on "auto")
+#
+# ~2.5GB of downloads, plus ~400MB of model weights fetched on first run.
+# Worth it: SigLIP understands *what* an object is, so a phone
+# photographed on a desk matches the same phone photographed in someone's
+# hand. The default descriptor only compares appearance.
+#
+# IMPORTANT: delete ai-service/storage/ after switching. Vectors produced
+# by two different models are not comparable, and mixing them silently
+# yields meaningless similarity scores. Then re-index:
+#
+#   cd ../backend && php artisan ai:reindex --fresh && php artisan queue:work
+torch==2.14.0
+transformers==5.17.0
+
+# Required, not optional. transformers 5.x resolves AutoImageProcessor to
+# its "fast" implementation, which is built on torchvision - without it
+# loading the processor raises ImportError before any image is touched.
+torchvision==0.29.0
+
+# Weight files for recent models ship in safetensors format; transformers
+# needs this to read them.
+safetensors>=0.4.0
+
+# Downloads and caches the model from the Hugging Face hub.
+huggingface-hub>=0.30.0

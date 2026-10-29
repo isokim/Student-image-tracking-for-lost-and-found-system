@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+        <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="APP_URL" value="http://localhost"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <!--
+            Tests run against a real MySQL database, not sqlite in memory.
+            The schema relies on MySQL behaviour (enum columns, and the
+            implicit-timestamp rule that made lost_at/found_at datetime),
+            so testing on sqlite would pass while production differs.
+
+            Create it once:  CREATE DATABASE lost_and_found_test;
+        -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="lost_and_found_test"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+
+        <!--
+            Sanctum SPA mode in tests.
+
+            Sanctum only starts a session when the request's Origin or
+            Referer matches one of SANCTUM_STATEFUL_DOMAINS. In a browser
+            the SPA sends those automatically; in tests nothing does, so
+            every request looks stateless and $request->session() throws
+            "Session store not set on request".
+
+            Setting the domain here + sending the Origin header from
+            tests/TestCase.php makes the test request look like the SPA.
+        -->
+        <env name="SANCTUM_STATEFUL_DOMAINS" value="localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1"/>
+    </php>
+</phpunit>

@@ -1,0 +1,17 @@
+# Core service. These are all that is needed for a working install -
+# image search runs on the colour-structure descriptor out of the box.
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+python-multipart==0.0.20
+httpx==0.28.1
+pillow==12.2.0
+numpy==2.5.3
+
+# Lets config.py read ai-service/.env, so settings live in a file the
+# way they do for Laravel rather than having to be exported by hand.
+python-dotenv==1.2.1
+
+# Vector index. Optional: index.py falls back to a numpy brute-force
+# search if this is missing, which is indistinguishable in speed at the
+# scale a campus lost-and-found operates at.
+faiss-cpu==1.15.0
