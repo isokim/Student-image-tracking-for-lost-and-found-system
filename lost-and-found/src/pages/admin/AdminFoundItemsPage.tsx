@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { PackagePlus } from "lucide-react";
+import { buttonStyles } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/layout/Breadcrumbs";
 import { SearchBar } from "@/components/common/SearchBar";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
@@ -36,7 +38,13 @@ export function AdminFoundItemsPage() {
   return (
     <div className="flex flex-col gap-6">
       <Breadcrumbs items={[{ label: "Found items" }]} />
-      <h1 className="text-xl font-semibold text-text">Found item reports</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-text">Found item reports</h1>
+        <Link to="/admin/found-items/report" className={buttonStyles("primary", "md")}>
+          <PackagePlus className="h-4 w-4" aria-hidden="true" />
+          Report found item
+        </Link>
+      </div>
       <SearchBar value={query} onChange={setQuery} placeholder="Search by item title…" />
 
       {isLoading ? (

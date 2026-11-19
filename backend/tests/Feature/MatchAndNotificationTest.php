@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\LostItemStatus;
 use App\Enums\MatchStatus;
 use App\Events\MatchCreated;
 use App\Models\Category;
@@ -94,6 +95,34 @@ class MatchAndNotificationTest extends TestCase
         $this->actingAs($this->student)->postJson("/api/matches/{$match->id}/dismiss")->assertOk();
 
         $this->assertCount(0, $this->actingAs($this->student)->getJson('/api/matches')->json());
+    }
+
+    public function test_dismissing_the_last_suggestion_clears_the_possible_match_status(): void
+    {
+        $mine = LostItem::factory()->for_user($this->student)->create(['status' => LostItemStatus::Matched]);
+        $first = ItemMatch::factory()->create(['lost_item_id' => $mine->id]);
+        $second = ItemMatch::factory()->create(['lost_item_id' => $mine->id]);
+
+        $this->actingAs($this->student)->postJson("/api/matches/{$first->id}/dismiss")->assertOk();
+        $this->assertSame(LostItemStatus::Matched, $mine->fresh()->status, 'one suggestion is still open');
+
+        $this->actingAs($this->student)->postJson("/api/matches/{$second->id}/dismiss")->assertOk();
+        $this->assertSame(LostItemStatus::Active, $mine->fresh()->status);
+    }
+
+    public function test_only_the_owner_and_staff_see_that_a_report_has_a_possible_match(): void
+    {
+        $mine = LostItem::factory()->for_user($this->student)->create(['status' => LostItemStatus::Matched]);
+
+        $this->actingAs($this->student)->getJson("/api/lost-items/{$mine->id}")
+            ->assertOk()->assertJsonPath('status', 'matched');
+
+        $this->actingAs($this->staff)->getJson("/api/lost-items/{$mine->id}")
+            ->assertOk()->assertJsonPath('status', 'matched');
+
+        // Everyone else browsing the board sees an ordinary open report.
+        $this->actingAs($this->otherStudent)->getJson("/api/lost-items/{$mine->id}")
+            ->assertOk()->assertJsonPath('status', 'active');
     }
 
     public function test_staff_cannot_dismiss_a_students_match_on_their_behalf(): void

@@ -4,7 +4,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Gate;
 
 /**
  * Matches the Claim interface in src/types/index.ts.
@@ -15,42 +14,54 @@ class ClaimResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $viewer = $request->user();
-
-        $canSeeExpectedAnswers = $viewer !== null
-            && Gate::forUser($viewer)->allows('viewVerificationAnswers', $this->resource);
+        $isStaff = (bool) $request->user()?->canActAsStaff();
 
         return [
             'id' => (string) $this->id,
             'foundItem' => new FoundItemResource($this->whenLoaded('foundItem')),
             'lostItem' => new LostItemResource($this->whenLoaded('lostItem')),
 
+            // Staff only, and only when the claim has no linked report.
+            'claimantLostReports' => LostItemResource::collection($this->whenLoaded('claimantLostReports')),
+
             'claimant' => $this->whenLoaded('claimant', fn () => [
                 'id' => (string) $this->claimant->id,
                 'name' => $this->claimant->name,
+                // SECURITY: contact details are for staff only, so they
+                // can reach the claimant. Never sent to students.
+                ...($isStaff ? [
+                    'email' => $this->claimant->email,
+                    'admissionNumber' => $this->claimant->admission_number,
+                ] : []),
             ]),
+
+            // Who handed the item in, with contact details - staff only.
+            'finder' => $this->when(
+                $isStaff && $this->relationLoaded('foundItem')
+                    && $this->foundItem->relationLoaded('user') && $this->foundItem->user !== null,
+                fn () => [
+                    'id' => (string) $this->foundItem->user->id,
+                    'name' => $this->foundItem->user->name,
+                    'role' => $this->foundItem->user->role->value,
+                    'email' => $this->foundItem->user->email,
+                    'admissionNumber' => $this->foundItem->user->admission_number,
+                ]
+            ),
 
             'identifyingInformation' => $this->identifying_information,
 
             'verificationAnswers' => $this->whenLoaded(
                 'verifications',
-                fn () => $this->verifications->map(fn ($verification) => array_filter([
+                /**
+                 * Only the claimant's question/answer pairs. The
+                 * expected_answer and result columns are no longer used:
+                 * staff check answers against the found item's private
+                 * verification info on the review screen instead.
+                 */
+                fn () => $this->verifications->map(fn ($verification) => [
                     'question' => $verification->question,
                     'answer' => $verification->answer,
-
-                    /**
-                     * SECURITY: expectedAnswer and result are for the
-                     * reviewer only.
-                     *
-                     * If the claimant could read the expected answer, the
-                     * verification step would prove nothing - they could
-                     * simply repeat it. array_filter drops the keys
-                     * entirely rather than sending nulls, so the response
-                     * gives no hint that the field exists.
-                     */
-                    'expectedAnswer' => $canSeeExpectedAnswers ? $verification->expected_answer : null,
-                    'result' => $canSeeExpectedAnswers ? $verification->result->value : null,
-                ], fn ($value) => $value !== null))->all()
+                ])->all()
             ),
 
             'status' => $this->status->value,

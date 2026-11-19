@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { PackagePlus, PackageSearch } from "lucide-react";
+import { PackageSearch } from "lucide-react";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useDashboardData } from "./useDashboardData";
 import { DashboardSection } from "./DashboardSection";
 import { ItemCard } from "@/components/common/ItemCard";
+import { HandInNote } from "@/components/common/HandInNote";
 import { NotificationItem } from "@/components/common/NotificationItem";
 import { ClaimStatus } from "@/components/common/ClaimStatus";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -15,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export function StudentDashboardPage() {
   const { user } = useAuth();
-  const { lostItems, foundItems, matches, claims, notifications } = useDashboardData();
+  const { lostItems, matches, claims, notifications } = useDashboardData();
   const queryClient = useQueryClient();
 
   async function markRead(id: string) {
@@ -30,17 +31,13 @@ export function StudentDashboardPage() {
           <h1 className="text-xl font-semibold text-text">Welcome back{user ? `, ${user.name.split(" ")[0]}` : ""}</h1>
           <p className="mt-1 text-sm text-text-muted">Here's what's happening with your reports and claims.</p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/lost-items/report" className={buttonStyles("primary", "md")}>
-            <PackageSearch className="h-4 w-4" aria-hidden="true" />
-            Report lost item
-          </Link>
-          <Link to="/found-items/report" className={buttonStyles("outline", "md")}>
-            <PackagePlus className="h-4 w-4" aria-hidden="true" />
-            Report found item
-          </Link>
-        </div>
+        <Link to="/lost-items/report" className={buttonStyles("primary", "md")}>
+          <PackageSearch className="h-4 w-4" aria-hidden="true" />
+          Report lost item
+        </Link>
       </div>
+
+      <HandInNote />
 
       <DashboardSection title="Your active lost reports" viewAllHref="/lost-items">
         {lostItems.isLoading ? (
@@ -61,20 +58,6 @@ export function StudentDashboardPage() {
               </Link>
             }
           />
-        )}
-      </DashboardSection>
-
-      <DashboardSection title="Your found reports" viewAllHref="/found-items">
-        {foundItems.isLoading ? (
-          <LoadingState rows={2} />
-        ) : foundItems.data && foundItems.data.length > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {foundItems.data.slice(0, 4).map((item) => (
-              <ItemCard key={item.id} item={item} kind="found" href={`/found-items/${item.id}`} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="No found reports yet" description="Handed something in? Log it here so its owner can find it." />
         )}
       </DashboardSection>
 
@@ -105,7 +88,7 @@ export function StudentDashboardPage() {
         )}
       </DashboardSection>
 
-      <DashboardSection title="Pending claims" viewAllHref="/claims">
+      <DashboardSection title="Your claims" viewAllHref="/claims">
         {claims.isLoading ? (
           <LoadingState rows={2} />
         ) : claims.data && claims.data.length > 0 ? (
@@ -125,7 +108,7 @@ export function StudentDashboardPage() {
             ))}
           </ul>
         ) : (
-          <EmptyState title="No pending claims" description="Claims you start on a possible match will show up here." />
+          <EmptyState title="No claims yet" description="Claims you start on a possible match or a found item will show up here." />
         )}
       </DashboardSection>
 

@@ -126,8 +126,8 @@ export function ReportLostItemPage() {
         <ImageUploader value={photo} onChange={setPhoto} label="Photograph (optional)" />
 
         <Textarea
-          label="Additional identifying information"
-          hint="Only shared with staff during claim verification — not shown publicly."
+          label="Details that prove it's yours"
+          hint="Only staff see this. They compare it with what the finder recorded, so include things only the owner would know, e.g. what's inside, a serial number, a scratch or sticker."
           value={form.additionalInfo}
           onChange={update("additionalInfo")}
         />

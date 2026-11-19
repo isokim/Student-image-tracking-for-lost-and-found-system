@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter } from "react-router-dom";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { useAuth } from "@/features/auth/AuthContext";
 import { StudentLayout } from "@/layouts/StudentLayout";
@@ -90,7 +90,13 @@ export const router = createBrowserRouter([
           { path: "/lost-items/report", element: <ReportLostItemPage /> },
           { path: "/lost-items/:id", element: <LostItemDetailPage /> },
           { path: "/found-items", element: <FoundItemsPage /> },
-          { path: "/found-items/report", element: <ReportFoundItemPage /> },
+          /**
+           * Students no longer log found items - they hand them in at the
+           * office and staff log them. The old path redirects to the
+           * browse list rather than falling through to /found-items/:id
+           * and trying to load an item called "report".
+           */
+          { path: "/found-items/report", element: <Navigate to="/found-items" replace /> },
           { path: "/found-items/:id", element: <FoundItemDetailPage /> },
           { path: "/search", element: <SearchPage /> },
           { path: "/search/advanced", element: <AdvancedSearchPage /> },
@@ -154,6 +160,7 @@ export const router = createBrowserRouter([
           { path: "/admin/lost-items", element: <AdminLostItemsPage /> },
           { path: "/admin/lost-items/:id", element: <LostItemDetailPage /> },
           { path: "/admin/found-items", element: <AdminFoundItemsPage /> },
+          { path: "/admin/found-items/report", element: <ReportFoundItemPage /> },
           { path: "/admin/found-items/:id", element: <StaffItemDetailPage /> },
           { path: "/admin/claims", element: <AdminClaimsPage /> },
           { path: "/admin/claims/:id", element: <StaffClaimDetailPage /> },

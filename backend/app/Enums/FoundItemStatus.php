@@ -4,8 +4,10 @@ namespace App\Enums;
 
 /**
  * pending_verification - handed in, a staff member has not seen it yet
- * verified             - staff confirmed it physically exists; now searchable
+ * verified             - staff confirmed it physically exists; claimable
+ *                        (shown to users as "Available to claim")
  * claimed              - an approved claim is attached, awaiting collection
+ *                        (shown to users as "Awaiting collection")
  * returned             - handed to its owner
  * rejected             - staff rejected the report (duplicate, spam, not a real item)
  */
@@ -28,9 +30,13 @@ enum FoundItemStatus: string
         return in_array($this, [self::PendingVerification, self::Verified, self::Claimed, self::Returned], true);
     }
 
-    /** Pending and verified items can be claimed while still unreturned. */
+    /**
+     * Only verified items can be claimed. A pending item is visible (so
+     * matches can point at it) but staff have not yet confirmed it was
+     * physically handed in, so nobody can claim it until they have.
+     */
     public function isClaimable(): bool
     {
-        return in_array($this, [self::PendingVerification, self::Verified], true);
+        return $this === self::Verified;
     }
 }

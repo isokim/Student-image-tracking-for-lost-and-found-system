@@ -207,6 +207,29 @@ class MatchScoringTest extends TestCase
         $this->assertSame(0.5, $this->scorer->score($lost, $found)->location);
     }
 
+    /**
+     * The bug: same category, same place, same day and a blank colour
+     * scored 0.525 on circumstances alone, with no word in common.
+     */
+    public function test_circumstances_alone_do_not_make_a_match(): void
+    {
+        [$lost, $found] = $this->pair(
+            ['title' => 'Gray shirt', 'description' => 'Cotton tee', 'colour' => null, 'lost_at' => now()],
+            ['title' => 'Blue jacket', 'description' => 'Denim zip-up', 'colour' => null, 'found_at' => now()],
+        );
+
+        $score = $this->scorer->score($lost, $found);
+
+        $this->assertGreaterThanOrEqual(config('matching.thresholds.minimum_score'), $score->overall);
+        $this->assertFalse($score->meetsThreshold());
+
+        // A middling visual likeness is not enough either...
+        $this->assertFalse($this->scorer->score($lost, $found, imageScore: 0.6)->meetsThreshold());
+
+        // ...but a strong one is.
+        $this->assertTrue($this->scorer->score($lost, $found, imageScore: 0.9)->meetsThreshold());
+    }
+
     public function test_a_partial_colour_name_still_scores_well(): void
     {
         [$lost, $found] = $this->pair(['colour' => 'blue'], ['colour' => 'navy blue']);

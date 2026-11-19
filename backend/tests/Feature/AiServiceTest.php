@@ -334,8 +334,9 @@ class AiServiceTest extends TestCase
         $category = Category::factory()->electronics()->create();
 
         // An item the AI service will happily point at, but which staff
-        // have NOT verified.
+        // have rejected, so students must never see it.
         $unverified = FoundItem::factory()->create([
+            'status' => 'rejected',
             'category_id' => $category->id,
             'location_text' => 'Near the library entrance',
             'title' => 'Black iPhone 13',

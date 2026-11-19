@@ -41,7 +41,14 @@ export const foundItemService = {
    * including what is still awaiting verification. The API decides
    * which, based on the caller's role.
    */
-  async list(params?: { page?: number; status?: string }): Promise<PaginatedResponse<FoundItemReport>> {
+  async list(params?: {
+    page?: number;
+    status?: string;
+    /** Keyword, matched against title, description and location. */
+    q?: string;
+    /** Category slug. */
+    category?: string;
+  }): Promise<PaginatedResponse<FoundItemReport>> {
     return apiGet<PaginatedResponse<FoundItemReport>>("/found-items", { params });
   },
 

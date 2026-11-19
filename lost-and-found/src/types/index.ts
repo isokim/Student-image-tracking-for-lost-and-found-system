@@ -96,7 +96,9 @@ export interface MatchScoreBreakdown {
   // no corresponding lost report, so there is no description, category
   // or location to compare - the API omits those keys rather than
   // sending zeros, which would read as "measured, and bad".
-  visualSimilarity?: number; // 0-100, only when an image was compared
+  // 0-100 when photos were compared. The matches API sends null (not
+  // omitted) when either photo has no embedding yet.
+  visualSimilarity?: number | null;
   descriptionSimilarity?: number; // 0-100
   categoryMatch?: boolean;
   colourMatch?: boolean;
@@ -129,7 +131,12 @@ export interface Claim {
   id: string;
   foundItem: FoundItemReport;
   lostItem?: LostItemReport;
-  claimant: Pick<User, "id" | "name">;
+  /** Staff only: the claimant's recent lost reports, when none is linked. */
+  claimantLostReports?: LostItemReport[];
+  /** email/admissionNumber are only sent to staff. */
+  claimant: Pick<User, "id" | "name"> & Partial<Pick<User, "email" | "admissionNumber">>;
+  /** Staff only: who handed the item in, with contact details. */
+  finder?: Pick<User, "id" | "name" | "role" | "email"> & Partial<Pick<User, "admissionNumber">>;
   identifyingInformation: string;
   verificationAnswers: ClaimVerificationAnswer[];
   status: ClaimStatus;

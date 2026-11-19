@@ -81,10 +81,17 @@ class FoundItemPolicy
         return $this->owns($user, $foundItem) || $user->canActAsStaff();
     }
 
+    /**
+     * Only staff (and admins, via before()) log found items.
+     *
+     * Students used to file found reports themselves, which let anyone
+     * post a fabricated item and watch who came to claim it. A student
+     * who finds something now hands it in at the office and staff log
+     * it there, with the object physically in front of them.
+     */
     public function create(User $user): bool
     {
-        // Students and staff can both hand an item in.
-        return true;
+        return $user->canActAsStaff();
     }
 
     /**
@@ -159,9 +166,24 @@ class FoundItemPolicy
         return Response::allow();
     }
 
+    /**
+     * Taking an item down. Allowed while it is pending or verified -
+     * staff-logged items start verified, so this is how staff remove one
+     * logged by mistake. Once claimed or returned it is history, not a
+     * listing. Pending claims on a rejected item can no longer be
+     * approved (ClaimPolicy::approve), only rejected.
+     */
     public function reject(User $user, FoundItem $foundItem): Response
     {
-        return $this->verify($user, $foundItem);
+        if (! $user->canActAsStaff()) {
+            return Response::deny('Only staff can reject found items.');
+        }
+
+        if (! in_array($foundItem->status, [FoundItemStatus::PendingVerification, FoundItemStatus::Verified], true)) {
+            return Response::deny('This item can no longer be rejected.');
+        }
+
+        return Response::allow();
     }
 
     /** Marking an item physically handed back to its owner. */

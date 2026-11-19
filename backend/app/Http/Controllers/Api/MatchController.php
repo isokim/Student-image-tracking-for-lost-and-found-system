@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\LostItemStatus;
 use App\Enums\MatchStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ItemMatchResource;
 use App\Models\ItemMatch;
 use App\Services\AuditLogger;
+use App\Services\ItemStatusRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -69,13 +71,26 @@ class MatchController extends Controller
      * Only the student the match belongs to can say this; staff cannot
      * dismiss someone else's suggestion on their behalf.
      */
-    public function dismiss(Request $request, ItemMatch $match): ItemMatchResource
+    public function dismiss(Request $request, ItemMatch $match, ItemStatusRecorder $status): ItemMatchResource
     {
         $this->authorize('dismiss', $match);
 
         $match->status = MatchStatus::Dismissed;
         $match->dismissed_at = now();
         $match->save();
+
+        /**
+         * Once the student has rejected every suggestion, the report is
+         * no longer "matched". Without this it kept its "Possible match"
+         * badge forever, even after the student said none of them were
+         * theirs.
+         */
+        $lost = $match->lostItem;
+
+        if ($lost?->status === LostItemStatus::Matched
+            && ! ItemMatch::where('lost_item_id', $lost->id)->visible()->exists()) {
+            $status->transition($lost, LostItemStatus::Active, $request->user(), 'All suggested matches dismissed.');
+        }
 
         $this->audit->log(
             'match.dismissed',

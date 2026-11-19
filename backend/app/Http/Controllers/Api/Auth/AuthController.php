@@ -43,12 +43,7 @@ class AuthController extends Controller
                 'admission_number' => $request->validated('admissionNumber'),
             ]);
 
-            /**
-             * SECURITY: the role is assigned here by the server, never
-             * taken from the request. Public registration always produces
-             * a student. Staff and admin accounts are created by an
-             * existing admin, or by `php artisan app:create-staff`.
-             */
+    
             $user->role = UserRole::Student;
             $user->status = UserStatus::Active;
             $user->save();
@@ -56,8 +51,6 @@ class AuthController extends Controller
             return $user;
         });
 
-        // Sends the verification email (MAIL_MAILER=log locally, so the
-        // link appears in storage/logs/laravel.log).
         event(new Registered($user));
 
         Auth::login($user);
@@ -68,7 +61,7 @@ class AuthController extends Controller
         return (new UserResource($user->load('department')))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
-    }
+    } 
 
     /**
      * POST /api/login

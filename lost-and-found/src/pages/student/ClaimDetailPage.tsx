@@ -38,7 +38,7 @@ export function ClaimDetailPage() {
       )}
 
       {claim.status === "approved" && (
-        <Alert tone="success" title="Claim approved">
+        <Alert tone="success" title="Claim approved — ready to collect">
           Visit the lost &amp; found office with your student ID to collect your item.
         </Alert>
       )}
@@ -50,14 +50,17 @@ export function ClaimDetailPage() {
       )}
 
       <div className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold text-text">Identifying information you provided</h2>
+        <h2 className="text-sm font-semibold text-text">Details you gave to prove it's yours</h2>
         <p className="mt-2 text-sm text-text">{claim.identifyingInformation}</p>
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold text-text">Verification answers</h2>
+        <h2 className="text-sm font-semibold text-text">Your answers</h2>
+        {(claim.verificationAnswers ?? []).length === 0 && (
+          <p className="mt-2 text-sm text-text-faint">You didn't add where or when you lost it.</p>
+        )}
         <dl className="mt-2 flex flex-col gap-3">
-          {claim.verificationAnswers.map((qa) => (
+          {(claim.verificationAnswers ?? []).map((qa) => (
             <div key={qa.question}>
               <dt className="text-sm text-text-muted">{qa.question}</dt>
               <dd className="text-sm text-text">{qa.answer}</dd>

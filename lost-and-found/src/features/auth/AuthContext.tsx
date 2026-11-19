@@ -82,6 +82,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   /**
+   * Re-check who we are whenever this tab comes back into view.
+   *
+   * The session cookie is shared by every tab in the browser, so signing
+   * in as someone else in another tab silently changes who this tab is
+   * acting as. Without this, the tab keeps showing the old account while
+   * the API answers as the new one - which surfaces as confusing "not
+   * allowed" errors. applyUser clears the cache when the identity changes.
+   */
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refresh]);
+
+  /**
    * A 401 on any request means the session died mid-session - it
    * expired, or it was signed out in another tab. Dropping to the login
    * screen is the only useful response; the alternative is a page that

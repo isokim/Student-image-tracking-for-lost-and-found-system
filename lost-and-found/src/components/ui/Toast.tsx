@@ -9,6 +9,10 @@ interface ToastItem {
   tone: ToastTone;
   title: string;
   description?: string;
+  /** Optional button, e.g. "View" to open what the toast is about. */
+  action?: { label: string; onClick: () => void };
+  /** How long it stays up, in ms. Defaults to 5s. */
+  duration?: number;
 }
 
 interface ToastContextValue {
@@ -31,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => [...prev, { ...toast, id }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
+    }, toast.duration ?? 5000);
   }, []);
 
   const dismiss = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -61,6 +65,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <p className="text-sm font-medium text-text">{toast.title}</p>
                 {toast.description && (
                   <p className="mt-0.5 text-xs text-text-muted">{toast.description}</p>
+                )}
+                {toast.action && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.action?.onClick();
+                      dismiss(toast.id);
+                    }}
+                    className="mt-1.5 text-xs font-medium text-navy-700 hover:underline"
+                  >
+                    {toast.action.label}
+                  </button>
                 )}
               </div>
               <button

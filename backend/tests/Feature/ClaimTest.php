@@ -6,6 +6,7 @@ use App\Enums\ClaimStatus;
 use App\Enums\FoundItemStatus;
 use App\Models\Claim;
 use App\Models\FoundItem;
+use App\Models\LostItem;
 use App\Models\User;
 use App\Notifications\ClaimApprovedNotification;
 use App\Notifications\ClaimRejectedNotification;
@@ -151,12 +152,104 @@ class ClaimTest extends TestCase
             ->assertJsonValidationErrors('identifyingInformation');
     }
 
-    public function test_a_claim_requires_verification_answers(): void
+    public function test_where_and_when_answers_are_optional(): void
+    {
+        $payload = $this->payload();
+        unset($payload['verificationAnswers']);
+
+        $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $payload)
+            ->assertCreated()
+            ->assertJsonPath('verificationAnswers', []);
+    }
+
+    public function test_a_verification_answer_that_is_sent_must_be_complete(): void
     {
         $this->actingAs($this->claimant)
-            ->postJson('/api/claims', $this->payload(['verificationAnswers' => []]))
+            ->postJson('/api/claims', $this->payload([
+                'verificationAnswers' => [['question' => 'Date lost', 'answer' => '']],
+            ]))
             ->assertStatus(422)
-            ->assertJsonValidationErrors('verificationAnswers');
+            ->assertJsonValidationErrors('verificationAnswers.0.answer');
+    }
+
+    // -----------------------------------------------------------------
+    // Linking the claimant's own lost report as proof
+    // -----------------------------------------------------------------
+
+    public function test_a_claim_can_link_the_claimants_own_lost_report(): void
+    {
+        $report = LostItem::factory()->for_user($this->claimant)->create();
+
+        $response = $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload(['lostItemId' => $report->id]))
+            ->assertCreated();
+
+        $this->assertDatabaseHas('claims', [
+            'id' => $response->json('id'),
+            'lost_item_id' => $report->id,
+        ]);
+    }
+
+    public function test_a_claim_cannot_link_another_students_lost_report(): void
+    {
+        $theirs = LostItem::factory()->for_user($this->otherStudent)->create();
+
+        $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload(['lostItemId' => $theirs->id]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('lostItemId');
+
+        $this->assertDatabaseCount('claims', 0);
+    }
+
+    public function test_a_claim_cannot_link_a_closed_lost_report(): void
+    {
+        $closed = LostItem::factory()->for_user($this->claimant)->closed()->create();
+
+        $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload(['lostItemId' => $closed->id]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('lostItemId');
+    }
+
+    public function test_a_claim_without_a_lost_report_still_works(): void
+    {
+        $response = $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload(['lostItemId' => null]))
+            ->assertCreated();
+
+        $this->assertDatabaseHas('claims', ['id' => $response->json('id'), 'lost_item_id' => null]);
+    }
+
+    public function test_a_lost_report_and_match_that_disagree_are_rejected(): void
+    {
+        $matchedReport = LostItem::factory()->for_user($this->claimant)->create();
+        $otherReport = LostItem::factory()->for_user($this->claimant)->create();
+        $match = \App\Models\ItemMatch::factory()->create([
+            'lost_item_id' => $matchedReport->id,
+            'found_item_id' => $this->item->id,
+        ]);
+
+        $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload([
+                'matchId' => $match->id,
+                'lostItemId' => $otherReport->id,
+            ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('lostItemId');
+
+        $response = $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload([
+                'matchId' => $match->id,
+                'lostItemId' => $matchedReport->id,
+            ]))
+            ->assertCreated();
+
+        $this->assertDatabaseHas('claims', [
+            'id' => $response->json('id'),
+            'lost_item_id' => $matchedReport->id,
+        ]);
     }
 
     public function test_a_guest_cannot_submit_a_claim(): void
@@ -221,7 +314,7 @@ class ClaimTest extends TestCase
         $this->assertArrayNotHasKey('expectedAnswer', $response->json('verificationAnswers.0'));
     }
 
-    public function test_reviewing_staff_can_see_the_expected_answers(): void
+    public function test_the_unused_expected_answer_is_not_exposed_even_to_staff(): void
     {
         $claim = Claim::factory()->create([
             'claimant_id' => $this->claimant->id,
@@ -233,10 +326,12 @@ class ClaimTest extends TestCase
             'expected_answer' => 'Lock screen shows a brown dog.',
         ]);
 
-        $this->actingAs($this->staff)
+        $response = $this->actingAs($this->staff)
             ->getJson("/api/claims/{$claim->id}")
             ->assertOk()
-            ->assertJsonPath('verificationAnswers.0.expectedAnswer', 'Lock screen shows a brown dog.');
+            ->assertJsonPath('verificationAnswers.0.answer', 'A photo of my dog');
+
+        $this->assertSame(['question', 'answer'], array_keys($response->json('verificationAnswers.0')));
     }
 
     // -----------------------------------------------------------------
@@ -435,5 +530,55 @@ class ClaimTest extends TestCase
         $this->actingAs($this->claimant)
             ->postJson("/api/claims/{$claim->id}/return")
             ->assertStatus(403);
+    }
+
+    // -----------------------------------------------------------------
+    // Staff review screen
+    // -----------------------------------------------------------------
+
+    public function test_staff_see_both_sides_of_a_claim_to_verify_the_owner(): void
+    {
+        Notification::fake();
+
+        $lost = LostItem::factory()->create([
+            'user_id' => $this->claimant->id,
+            'additional_info' => 'Dog photo on the lock screen.',
+        ]);
+
+        $claimId = $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload())
+            ->assertCreated()
+            ->json('id');
+
+        $response = $this->actingAs($this->staff)->getJson("/api/claims/{$claimId}")->assertOk();
+
+        $response
+            ->assertJsonPath('claimant.email', $this->claimant->email)
+            ->assertJsonPath('finder.id', (string) $this->finder->id)
+            ->assertJsonPath('finder.email', $this->finder->email)
+            ->assertJsonPath('foundItem.privateVerificationInfo', 'Lock screen shows a brown dog.')
+            // Not started from a match, so staff get the claimant's lost reports instead.
+            ->assertJsonPath('claimantLostReports.0.id', (string) $lost->id)
+            ->assertJsonPath('claimantLostReports.0.additionalInfo', 'Dog photo on the lock screen.');
+    }
+
+    public function test_the_claimant_never_sees_contact_details_or_the_hidden_details(): void
+    {
+        Notification::fake();
+
+        LostItem::factory()->create(['user_id' => $this->claimant->id]);
+
+        $claimId = $this->actingAs($this->claimant)
+            ->postJson('/api/claims', $this->payload())
+            ->assertCreated()
+            ->json('id');
+
+        $response = $this->actingAs($this->claimant)->getJson("/api/claims/{$claimId}")->assertOk();
+
+        $response
+            ->assertJsonMissingPath('finder')
+            ->assertJsonMissingPath('claimant.email')
+            ->assertJsonMissingPath('claimantLostReports')
+            ->assertJsonMissingPath('foundItem.privateVerificationInfo');
     }
 }

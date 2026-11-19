@@ -59,8 +59,20 @@ export function MatchScoreCard({
         </span>
       </div>
       <div className="flex flex-col gap-3">
-        {scores.visualSimilarity !== undefined && (
-          <ScoreBar label="Visual similarity" value={scores.visualSimilarity} />
+        {/*
+          null means "not measured" (a photo has not been analysed yet),
+          not 0%. Rendering it as a bar produced an empty track and a bare
+          "%" - say so plainly instead.
+        */}
+        {scores.visualSimilarity === null ? (
+          <div className="flex items-center gap-3">
+            <span className="w-44 shrink-0 text-sm text-text-muted">Visual similarity</span>
+            <span className="text-sm text-text-faint">Photos not compared yet</span>
+          </div>
+        ) : (
+          scores.visualSimilarity !== undefined && (
+            <ScoreBar label="Visual similarity" value={scores.visualSimilarity} />
+          )
         )}
         {scores.descriptionSimilarity !== undefined && (
           <ScoreBar label="Description similarity" value={scores.descriptionSimilarity} />

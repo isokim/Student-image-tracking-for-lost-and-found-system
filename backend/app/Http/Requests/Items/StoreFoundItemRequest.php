@@ -24,24 +24,20 @@ class StoreFoundItemRequest extends FormRequest
             'description' => ['required', 'string', 'min:10', 'max:2000'],
 
             /**
-             * The detail only the true owner would know. Optional but
-             * strongly encouraged - without it, staff reviewing a claim
-             * have nothing to check the claimant's answers against.
+             * The detail only the true owner would know. Required:
+             * without it, staff reviewing a claim have nothing to check
+             * the claimant's "details that prove it's yours" against.
              *
              * Never returned to anyone but the finder and staff; see
              * FoundItemResource.
              */
-            'privateVerificationInfo' => ['nullable', 'string', 'max:2000'],
+            'privateVerificationInfo' => ['required', 'string', 'min:10', 'max:2000'],
 
             'colour' => ['nullable', 'string', 'max:50'],
 
-            /**
-             * Free text, written by the finder: "on the bench outside the
-             * cafeteria". There is no fixed list to pick from - see the
-             * note in StoreLostItemRequest.
-             */
+        
             'location' => ['required', 'string', 'min:2', 'max:150'],
-            // One day of slack on the date - see the note in StoreLostItemRequest.
+           
             'foundAt' => [
                 'required',
                 'date',
@@ -69,15 +65,20 @@ class StoreFoundItemRequest extends FormRequest
             'photo.image' => 'That file is not a readable image.',
             'foundAt.before_or_equal' => 'The date you found it cannot be in the future.',
             'location.required' => 'Tell us where you found it.',
+            'privateVerificationInfo.required' => 'Add a hidden detail only the owner would know, so staff can check claims.',
+            'privateVerificationInfo.min' => 'Give a bit more detail (at least 10 characters) so staff can check claims.',
         ];
     }
+
+
+
 
     public function attributes(): array
     {
         return [
             'location' => 'location',
             'foundAt' => 'date found',
-            'privateVerificationInfo' => 'verification detail',
+            'privateVerificationInfo' => 'hidden details',
             'additionalInfo' => 'additional information',
         ];
     }

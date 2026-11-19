@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\LostItemStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -52,7 +53,19 @@ class LostItemResource extends JsonResource
              */
             'additionalInfo' => $this->when($canSeePrivate, fn () => $this->additional_info),
 
-            'status' => $this->status->value,
+            /**
+             * "matched" is shown only to the owner and staff.
+             *
+             * The board lists everyone's reports, and the UI renders
+             * "matched" as a "Possible match" badge - so every account saw
+             * that badge on other students' reports, as if the match were
+             * theirs. Whether a report has a suggestion is also the
+             * owner's business, like the private notes above. Everyone
+             * else sees it as still active, which it is.
+             */
+            'status' => ! $canSeePrivate && $this->status === LostItemStatus::Matched
+                ? LostItemStatus::Active->value
+                : $this->status->value,
 
             // Just id and name. The reporter's email, admission number and
             // role are nobody else's business on a public board.

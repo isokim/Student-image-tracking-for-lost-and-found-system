@@ -42,7 +42,7 @@ use Illuminate\Support\Facades\Route;
 |                          does the record exist.
 |
 | A route being behind role:staff never excuses a controller from
-| calling authorize(). The middleware keeps students out of the admin
+| calling authorize(). The middleware keeps students out of the staff
 | section; the policies keep one student out of another student's data.
 |
 */
@@ -120,19 +120,22 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // --- found items --------------------------------------------------
     Route::get('/found-items/mine', [FoundItemController::class, 'mine'])->name('found-items.mine');
     Route::get('/found-items', [FoundItemController::class, 'index'])->name('found-items.index');
-    Route::post('/found-items', [FoundItemController::class, 'store'])
-        ->middleware('throttle:20,1')->name('found-items.store');
     Route::get('/found-items/{foundItem}', [FoundItemController::class, 'show'])->name('found-items.show');
     Route::put('/found-items/{foundItem}', [FoundItemController::class, 'update'])->name('found-items.update');
     Route::delete('/found-items/{foundItem}', [FoundItemController::class, 'destroy'])->name('found-items.destroy');
 
     /**
-     * Verification is staff work, so the route carries role:staff,admin
-     * AND the controller calls authorize('verify'). Two layers: the
+     * Logging and verification are staff work, so the routes carry a role
+     * check AND the controller calls authorize('verify'). Two layers: the
      * middleware states the intent plainly at the routing table, the
      * policy enforces the detail (an item cannot be verified twice).
      */
     Route::middleware('role:staff,admin')->group(function () {
+        // Logging a found item is staff work too: students hand items in
+        // at the office rather than filing reports themselves. The
+        // FoundItemPolicy::create check in StoreFoundItemRequest backs this 
+        Route::post('/found-items', [FoundItemController::class, 'store'])
+            ->middleware('throttle:20,1')->name('found-items.store');
         Route::post('/found-items/{foundItem}/verify', [FoundItemController::class, 'verify'])
             ->name('found-items.verify');
         Route::post('/found-items/{foundItem}/reject', [FoundItemController::class, 'reject'])
@@ -197,13 +200,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/claims', [ClaimController::class, 'index'])->name('claims');
     });
 
-    // -----------------------------------------------------------------
-    // Admin area
-    //
-    // role:admin on the whole group, and the controllers still run their
-    // own policy checks. A student reaching any of these gets a flat 403
-    // that says nothing about what lives here.
-    // -----------------------------------------------------------------
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
         Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
         Route::get('/stats', AdminDashboardController::class)->name('stats');
@@ -215,7 +211,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/users/{user}/reinstate', [AdminUserController::class, 'reinstate'])->name('users.reinstate');
         Route::post('/users/{user}/role', [AdminUserController::class, 'changeRole'])->name('users.role');
 
-        // The controlled process for creating staff and admin accounts.
         Route::post('/staff', [AdminUserController::class, 'storeStaff'])->name('staff.store');
 
         // items and claims - the same controllers, unfiltered

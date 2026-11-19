@@ -75,22 +75,8 @@ class SearchController extends Controller
             ], Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
-        /**
-         * Shaped as ImageSearchResult[] for the React client.
-         *
-         * `scores` carries ONLY visualSimilarity, because visual
-         * similarity is the only thing actually measured here - there is
-         * no lost report to compare a description, category or location
-         * against, since the student searched with a photo rather than
-         * filing one.
-         *
-         * This previously sent descriptionSimilarity: 0, categoryMatch:
-         * false and locationProximity: 'different' as filler, which the
-         * UI rendered literally: every result claimed a 0% description
-         * match and a failed category match regardless of the items. The
-         * keys are omitted now so the component can distinguish "not
-         * measured" from "measured and bad".
-         */
+   
+
         return response()->json(array_map(fn (array $row) => [
             'id' => (string) $row['item']->id,
             'matchedItem' => new FoundItemResource($row['item']),

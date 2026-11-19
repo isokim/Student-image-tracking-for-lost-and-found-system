@@ -37,13 +37,13 @@ class SearchService
         return $this->applyFilters(
             FoundItem::query()
                 ->withApiRelations()
-                // Public found reports. Staff use their own queue
-                // endpoint to triage what is awaiting verification.
+        
                 ->publiclyVisible(),
             $filters,
             'found_at',
         )->limit(100)->get();
     }
+
 
     public function searchLostItems(array $filters, User $viewer): Collection
     {
@@ -67,10 +67,7 @@ class SearchService
      */
     public function searchByImage(UploadedFile $image, array $filters, User $viewer): array
     {
-        // Throws AiServiceUnavailableException if the service is off; the
-        // controller turns that into a 503 rather than a silent empty list,
-        // because "no results" and "search is broken" mean different things
-        // to the person who just uploaded a photo of their missing laptop.
+        
         $embedding = $this->ai->embedRawImage(
             file_get_contents($image->getRealPath()),
             $image->getMimeType(),
@@ -91,13 +88,7 @@ class SearchService
             $scoresByItemId[$candidate->itemId] = $candidate->score;
         }
 
-        /**
-         * SECURITY: the ids come from the AI service, which knows nothing
-         * about verification status or ownership. They are therefore
-         * treated as a shortlist to be re-checked, never as a result set -
-         * publiclyVisible() is what stops vector search surfacing an item
-         * that should not be on the student board.
-         */
+        
         $items = $this->applyFilters(
             FoundItem::query()
                 ->withApiRelations()
@@ -139,27 +130,22 @@ class SearchService
             $term = $filters['query'];
 
             $query->where(function (Builder $q) use ($term) {
-                // LIKE wildcards in user input are escaped by the binding,
-                // but % and _ would still act as wildcards, so they are
-                // neutralised explicitly.
+              
                 $escaped = '%'.addcslashes($term, '%_\\').'%';
 
                 $q->where('title', 'like', $escaped)
                     ->orWhere('description', 'like', $escaped)
-                    // Typed locations are free text, so the place someone
-                    // writes is also just another searchable word.
+                    
                     ->orWhere('location_text', 'like', $escaped);
             });
         }
 
         if (! empty($filters['category'])) {
             $categoryId = Category::where('slug', $filters['category'])->value('id');
-            // A slug that does not exist must return nothing, not
-            // everything - hence the explicit -1 rather than skipping.
+    
             $query->where('category_id', $categoryId ?? -1);
         }
 
-        // Free-text location filter, matched the same way as colour.
         if (! empty($filters['location'])) {
             $query->where('location_text', 'like', '%'.addcslashes($filters['location'], '%_\\').'%');
         }
@@ -168,12 +154,13 @@ class SearchService
             $query->where('colour', 'like', '%'.addcslashes($filters['colour'], '%_\\').'%');
         }
 
+
         if (! empty($filters['dateFrom'])) {
-            $query->where($dateColumn, '>=', $filters['dateFrom']);
+            $query->whereDate($dateColumn, '>=', $filters['dateFrom']);
         }
 
         if (! empty($filters['dateTo'])) {
-            $query->where($dateColumn, '<=', $filters['dateTo']);
+            $query->whereDate($dateColumn, '<=', $filters['dateTo']);
         }
 
         return $query->latest($dateColumn);

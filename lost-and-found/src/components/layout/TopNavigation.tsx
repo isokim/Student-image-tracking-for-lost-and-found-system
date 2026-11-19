@@ -3,15 +3,13 @@ import { Bell, LogOut, Menu, Settings, User as UserIcon } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { useAuth } from "@/features/auth/AuthContext";
+import { useNotificationWatcher } from "@/features/notifications/useNotificationWatcher";
 
-export function TopNavigation({
-  onMenuClick,
-  unreadCount = 0,
-}: {
-  onMenuClick: () => void;
-  unreadCount?: number;
-}) {
+export function TopNavigation({ onMenuClick }: { onMenuClick: () => void }) {
   const { user, logout } = useAuth();
+  // Polls for notifications and toasts new ones. Every signed-in layout
+  // renders this bar exactly once, so this is the one place it runs.
+  const { unreadCount } = useNotificationWatcher();
   const navigate = useNavigate();
 
   async function handleLogout() {

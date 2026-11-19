@@ -225,11 +225,11 @@ class SecurityTest extends TestCase
     // 6. Unauthorized users cannot access private images
     // =================================================================
 
-    public function test_a_student_cannot_fetch_the_photo_of_an_unverified_found_item(): void
+    public function test_a_student_cannot_fetch_the_photo_of_a_rejected_found_item(): void
     {
         Storage::fake('items');
 
-        $item = FoundItem::factory()->for_user($this->student)->create();
+        $item = FoundItem::factory()->for_user($this->student)->create(['status' => 'rejected']);
         // Created through the relationship, which is how the real
         // code does it - item_type/item_id are not fillable, so a
         // direct ItemImage::create() would silently drop them.
@@ -491,7 +491,8 @@ class SecurityTest extends TestCase
             'photo' => $malicious,
         ])->assertStatus(422)->assertJsonValidationErrors('photo');
 
-        $this->actingAs($this->student)->post('/api/found-items', [
+        // Found items are logged by staff, so that is who uploads here.
+        $this->actingAs($this->staff)->post('/api/found-items', [
             'title' => 'Black iPhone',
             'category' => 'electronics',
             'description' => 'A black iPhone with a cracked screen.',

@@ -28,7 +28,7 @@ class FoundItemVerifiedNotification extends Notification implements ShouldQueue
         return $this->payload(
             type: 'found_item_verified',
             title: 'Found item verified',
-            body: "Thanks - \"{$this->item->title}\" has been verified and is now listed so its owner can find it.",
+            body: "Thanks - \"{$this->item->title}\" has been verified and is now available to claim, so its owner can find it.",
             relatedResourceUrl: "/found-items/{$this->item->id}",
         );
     }

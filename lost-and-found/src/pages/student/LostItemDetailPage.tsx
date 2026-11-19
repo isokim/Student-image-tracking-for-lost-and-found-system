@@ -133,7 +133,8 @@ export function LostItemDetailPage() {
             </div>
           </dl>
 
-          {item.status === "matched" && (
+          {/* /matches lists the viewer's own suggestions, so only the owner (or an admin) has anything to see there. */}
+          {item.status === "matched" && (isOwner || user?.role === "admin") && (
             <Link to={matchesPath} className="text-sm font-medium text-navy-700 underline underline-offset-2">
               View possible matches for this report
             </Link>

@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { PackagePlus } from "lucide-react";
+import { buttonStyles } from "@/components/ui/Button";
 import { adminService } from "@/features/admin/adminService";
 import { claimService } from "@/features/claims/claimService";
 import { foundItemService } from "@/features/found-items/foundItemService";
@@ -20,7 +22,10 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
 
 export function AdminDashboardPage() {
   const stats = useQuery({ queryKey: ["admin", "stats"], queryFn: adminService.stats });
-  const claims = useQuery({ queryKey: ["claims", "admin"], queryFn: claimService.list });
+  const claims = useQuery({
+    queryKey: ["claims", "admin", "pending_review"],
+    queryFn: () => claimService.listByStatus("pending_review"),
+  });
   const matches = useQuery({ queryKey: ["matches", "admin"], queryFn: matchService.list });
   const foundItems = useQuery({
     queryKey: ["found-items", "admin-recent"],
@@ -30,9 +35,15 @@ export function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-xl font-semibold text-text">Overview</h1>
-        <p className="mt-1 text-sm text-text-muted">System-wide activity across lost and found reports.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Overview</h1>
+          <p className="mt-1 text-sm text-text-muted">System-wide activity across lost and found reports.</p>
+        </div>
+        <Link to="/admin/found-items/report" className={buttonStyles("primary", "md")}>
+          <PackagePlus className="h-4 w-4" aria-hidden="true" />
+          Report found item
+        </Link>
       </div>
 
       {stats.isLoading ? (

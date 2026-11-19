@@ -24,7 +24,10 @@ export function FoundItemDetailPage() {
   if (!item) return <NotFoundState resource="item" />;
 
   const isFinder = user?.id === item.reportedBy.id;
-  const canClaim = !isFinder && (item.status === "pending_verification" || item.status === "verified");
+  // Only staff-verified items can be claimed. Pending items are visible so
+  // matches can point at them, but the hand-in hasn't been confirmed yet.
+  const canClaim = !isFinder && item.status === "verified";
+  const awaitingVerification = !isFinder && item.status === "pending_verification";
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,6 +88,12 @@ export function FoundItemDetailPage() {
             <Link to={`/claims/new?foundItemId=${item.id}`} className={buttonStyles("primary", "md") + " w-fit"}>
               Start a claim
             </Link>
+          )}
+          {awaitingVerification && (
+            <p className="rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-text-muted">
+              Staff haven't confirmed this item has been handed in yet. You can start a claim once it's verified —
+              check back soon.
+            </p>
           )}
         </div>
       </div>

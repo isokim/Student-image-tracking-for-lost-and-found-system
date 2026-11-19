@@ -3,6 +3,8 @@ import { Bell, CheckCircle2, Search, UserCheck, XCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { formatRelativeTime } from "@/lib/format";
 import type { AppNotification, NotificationType } from "@/types";
+import { useAuth } from "@/features/auth/AuthContext";
+import { resolveNotificationUrl } from "@/features/notifications/useNotificationWatcher";
 
 const iconMap: Record<NotificationType, typeof Bell> = {
   possible_match: Search,
@@ -20,7 +22,9 @@ export function NotificationItem({
   notification: AppNotification;
   onMarkRead: (id: string) => void;
 }) {
-  const Icon = iconMap[notification.type];
+  const { user } = useAuth();
+  const Icon = iconMap[notification.type] ?? Bell;
+  const href = resolveNotificationUrl(notification.relatedResourceUrl, user?.role);
   const isUnread = !notification.readAt;
 
   const content = (
@@ -49,10 +53,10 @@ export function NotificationItem({
     </div>
   );
 
-  if (notification.relatedResourceUrl) {
+  if (href) {
     return (
       <Link
-        to={notification.relatedResourceUrl}
+        to={href}
         onClick={() => isUnread && onMarkRead(notification.id)}
         className="block focus-visible:outline-2 focus-visible:outline-navy-600"
       >

@@ -1,11 +1,35 @@
 import axios, { type AxiosError, type AxiosRequestConfig } from "axios";
 import type { ApiError } from "@/types";
+import { queryClient } from "@/lib/queryClient";
+
+/**
+ * The API URL, on the same loopback hostname the page was opened on.
+ *
+ * Locally, http://localhost:5173 and http://127.0.0.1:5173 get separate
+ * session cookies, so they can be signed in as different accounts at
+ * once. That only works if each one talks to the API on its own
+ * hostname - otherwise both would share the one API cookie. Real
+ * hostnames are left untouched.
+ */
+function resolveApiUrl(): string | undefined {
+  const configured = import.meta.env.VITE_API_URL;
+  if (!configured || typeof window === "undefined") return configured;
+
+  const loopback = ["localhost", "127.0.0.1"];
+  const url = new URL(configured);
+  if (loopback.includes(url.hostname) && loopback.includes(window.location.hostname)) {
+    url.hostname = window.location.hostname;
+  }
+  return url.toString().replace(/\/$/, "");
+}
+
+const API_URL = resolveApiUrl();
 
 // Single axios instance the whole app shares. Feature services build on
 // top of this rather than importing axios directly, so auth headers,
 // error shape, and base URL only live in one place.
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "/api",
+  baseURL: API_URL ?? "/api",
   withCredentials: true, // required for Laravel Sanctum's SPA cookie auth
   // The API runs on a different port (5173 -> 8002), so it is a different
   // origin. Since axios 1.6 the X-XSRF-TOKEN header is no longer attached
@@ -20,7 +44,7 @@ export const apiClient = axios.create({
 // Laravel Sanctum SPA auth needs the CSRF cookie fetched once before any
 // state-changing request. Call this before login/register.
 export async function ensureCsrfCookie() {
-  const base = import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, "") ?? "";
+  const base = API_URL?.replace(/\/api\/?$/, "") ?? "";
   await axios.get(`${base}/sanctum/csrf-cookie`, { withCredentials: true });
 }
 
@@ -51,7 +75,21 @@ type RetryableConfig = AxiosRequestConfig & { csrfRetried?: boolean };
  * is much better than leaving them on a page whose data will never load.
  */
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    /**
+     * Any successful change (approve, claim, report, dismiss...) can
+     * affect lists, counts, statuses and notifications on other pages.
+     * Rather than every page remembering which caches to refresh, refresh
+     * them all - cheap at this app's size, and never stale. Auth requests
+     * are skipped; AuthContext handles a change of identity itself.
+     */
+    const method = response.config.method?.toLowerCase();
+    const url = response.config.url ?? "";
+    if (method && method !== "get" && !/\/(login|logout|register)$/.test(url)) {
+      queryClient.invalidateQueries();
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const status = error.response?.status;
     const config = error.config as RetryableConfig | undefined;

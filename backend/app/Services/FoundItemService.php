@@ -28,8 +28,7 @@ class FoundItemService
             $item = new FoundItem([
                 'category_id' => $this->resolveCategoryId($data['category']),
 
-                // The place as the finder typed it - the only location
-                // there is now that the admin-managed list is gone.
+                // The place as staff typed it.
                 'location_text' => $data['location'],
 
                 'title' => $data['title'],
@@ -43,19 +42,29 @@ class FoundItemService
             $item->user_id = $finder->id;
 
             /**
-             * Everything starts unverified, including items handed in by
-             * staff. Staff verification means "I have this object in my
-             * hand", which is a separate act from filing the report - so
-             * even a staff member's own report waits for a sign-off.
+             * Found items are logged by staff at the office, with the
+             * object in hand - which is exactly what verification
+             * confirms. So a staff-logged item is verified on creation
+             * and claimable straight away; there is no second sign-off.
+             *
              */
-            $item->status = FoundItemStatus::PendingVerification;
+            $loggedByStaff = $finder->canActAsStaff();
+
+            if ($loggedByStaff) {
+                $item->status = FoundItemStatus::Verified;
+                $item->verified_by = $finder->id;
+                $item->verified_at = now();
+            } else {
+                $item->status = FoundItemStatus::PendingVerification;
+            }
+
             $item->save();
 
             $item->statusHistory()->create([
                 'from_status' => null,
-                'to_status' => FoundItemStatus::PendingVerification->value,
+                'to_status' => $item->status->value,
                 'changed_by' => $finder->id,
-                'note' => 'Item handed in.',
+                'note' => $loggedByStaff ? 'Logged by staff at the office.' : 'Item handed in.',
             ]);
 
             if ($photo) {
@@ -72,17 +81,20 @@ class FoundItemService
             return $item;
         });
 
-        /**
-         * Queued after commit - see the note in LostItemService::create.
-         *
-         * Unconditional, photo or not: the analysis step is skipped when
-         * there is nothing to analyse, but the pipeline still needs to
-         * run so ai_processed_at gets stamped.
-         */
+       
         ProcessItemImage::dispatch($item->getMorphClass(), $item->id);
+
+        if ($item->status === FoundItemStatus::Verified) {
+ 
+            FoundItemVerified::dispatch($item);
+        }
 
         return $item->fresh();
     }
+
+
+
+
 
     public function update(FoundItem $item, array $data, User $actor): FoundItem
     {

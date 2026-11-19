@@ -5,8 +5,16 @@ export interface CreateClaimPayload {
   foundItemId: string;
   /** The AI suggestion that prompted the claim, if there was one. */
   matchId?: string;
+  /**
+   * The claimant's own open lost report ("Which of your lost reports is
+   * this?"). Its "Details that prove it's yours" are what staff compare
+   * with the found item's hidden details. Must agree with the match's
+   * report when both are sent.
+   */
+  lostItemId?: string;
   identifyingInformation: string;
-  verificationAnswers: ClaimVerificationAnswer[];
+  /** Optional "where and when" answers - only the ones the claimant filled in. */
+  verificationAnswers?: ClaimVerificationAnswer[];
 }
 
 export const claimService = {

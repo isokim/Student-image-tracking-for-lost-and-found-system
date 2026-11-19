@@ -10,6 +10,7 @@ use App\Http\Resources\ClaimResource;
 use App\Models\Claim;
 use App\Models\FoundItem;
 use App\Models\ItemMatch;
+use App\Models\LostItem;
 use App\Services\ClaimService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,43 +59,58 @@ class ClaimController extends Controller
      * the claim exists, which is itself information about who is
      * claiming what.
      */
-    public function show(Claim $claim): ClaimResource
+    public function show(Request $request, Claim $claim): ClaimResource
     {
         $this->authorize('view', $claim);
 
-        return new ClaimResource($claim->loadMissing([
-            'claimant:id,name', 'reviewer:id,name', 'verifications',
+        $claim->loadMissing([
+            // email/admission_number are only exposed to staff - see
+            // ClaimResource - so staff can contact both sides.
+            'claimant:id,name,email,admission_number', 'reviewer:id,name', 'verifications',
             'foundItem.category:id,slug,name',
-            'foundItem.user:id,name,role', 'foundItem.primaryImage',
+            'foundItem.user:id,name,role,email,admission_number', 'foundItem.primaryImage',
             // The claimant's own lost report, when the claim was filed
             // from a match. This is the corroboration staff weigh on the
             // review screen, and without the eager-load ClaimResource's
             // whenLoaded() dropped the key entirely.
             'lostItem.category:id,slug,name',
             'lostItem.user:id,name', 'lostItem.primaryImage',
-        ]));
+        ]);
+
+        /**
+         * A claim started from the found-items list has no lost report
+         * linked, but the claimant may still have reported the item lost.
+         * Staff get the claimant's recent lost reports so they can compare
+         * them anyway. Never sent to students.
+         */
+        if ($request->user()->canActAsStaff() && $claim->lost_item_id === null) {
+            $claim->setRelation('claimantLostReports', LostItem::query()
+                ->where('user_id', $claim->claimant_id)
+                ->with(['category:id,slug,name', 'user:id,name', 'primaryImage'])
+                ->latest()
+                ->limit(5)
+                ->get());
+        }
+
+        return new ClaimResource($claim);
     }
 
     public function store(StoreClaimRequest $request): JsonResponse
     {
         $item = FoundItem::findOrFail($request->validated('foundItemId'));
 
-        /**
-         * The second authorisation check, on the specific item.
-         *
-         * StoreClaimRequest::authorize() only established that this user
-         * may file claims at all. This is what enforces that the item is
-         * verified, that the finder is not claiming their own item, and
-         * that they have not already got a claim open on it.
-         */
+        
         $this->authorize('claim', $item);
+
+        $match = $this->resolveMatch($request->validated('matchId'), $item);
 
         $claim = $this->service->submit(
             claimant: $request->user(),
             item: $item,
             identifyingInformation: $request->validated('identifyingInformation'),
-            verificationAnswers: $request->validated('verificationAnswers'),
-            match: $this->resolveMatch($request->validated('matchId'), $item),
+            verificationAnswers: $request->validated('verificationAnswers') ?? [],
+            match: $match,
+            lostItem: $this->resolveLostItem($request->validated('lostItemId'), $match),
         );
 
         return (new ClaimResource($claim->load([
@@ -141,11 +157,36 @@ class ClaimController extends Controller
         return $match;
     }
 
+    /**
+     * The claimant's own lost report picked on the claim form.
+     *
+     * StoreClaimRequest already restricted lostItemId to an open report
+     * owned by the caller, so this only resolves the model and checks it
+     * agrees with the match, when both are given. A claim filed from a
+     * match for one report but naming a different report would leave
+     * staff comparing against the wrong evidence.
+     */
+    private function resolveLostItem(int|string|null $lostItemId, ?ItemMatch $match): ?LostItem
+    {
+        if ($lostItemId === null) {
+            return null;
+        }
+
+        $lostItem = LostItem::findOrFail($lostItemId);
+
+        if ($match !== null && (string) $match->lost_item_id !== (string) $lostItem->id) {
+            throw ValidationException::withMessages([
+                'lostItemId' => 'That lost report is not the one this match was suggested for.',
+            ]);
+        }
+
+        return $lostItem;
+    }
+
     /** POST /api/claims/{claim}/approve - staff only. */
     public function approve(ReviewClaimRequest $request, Claim $claim): ClaimResource
     {
-        // 'approve', not 'review': it additionally refuses once another
-        // claim on the same item has already been approved.
+        
         $this->authorize('approve', $claim);
 
         $claim = $this->service->approve($claim, $request->user(), $request->validated('notes'));
@@ -154,10 +195,7 @@ class ClaimController extends Controller
             'claimant:id,name', 'reviewer:id,name', 'verifications',
             'foundItem.category:id,slug,name',
             'foundItem.user:id,name,role', 'foundItem.primaryImage',
-            // The claimant's own lost report, when the claim was filed
-            // from a match. This is the corroboration staff weigh on the
-            // review screen, and without the eager-load ClaimResource's
-            // whenLoaded() dropped the key entirely.
+           
             'lostItem.category:id,slug,name',
             'lostItem.user:id,name', 'lostItem.primaryImage',
         ]));
@@ -173,22 +211,12 @@ class ClaimController extends Controller
             'claimant:id,name', 'reviewer:id,name', 'verifications',
             'foundItem.category:id,slug,name',
             'foundItem.user:id,name,role', 'foundItem.primaryImage',
-            // The claimant's own lost report, when the claim was filed
-            // from a match. This is the corroboration staff weigh on the
-            // review screen, and without the eager-load ClaimResource's
-            // whenLoaded() dropped the key entirely.
+            
             'lostItem.category:id,slug,name',
             'lostItem.user:id,name', 'lostItem.primaryImage',
         ]));
     }
 
-    /**
-     * POST /api/claims/{claim}/return
-     *
-     * Records that the student physically collected the item. Separate
-     * from approval because approving is a decision and collecting is an
-     * event - and an approved claim that is never collected matters.
-     */
     public function markReturned(Request $request, Claim $claim): ClaimResource
     {
         $this->authorize('complete', $claim);
@@ -199,11 +227,7 @@ class ClaimController extends Controller
             'claimant:id,name', 'reviewer:id,name', 'verifications',
             'foundItem.category:id,slug,name',
             'foundItem.user:id,name,role', 'foundItem.primaryImage',
-            // The claimant's own lost report, when the claim was filed
-            // from a match. This is the corroboration staff weigh on the
-            // review screen, and without the eager-load ClaimResource's
-            // whenLoaded() dropped the key entirely.
-            'lostItem.category:id,slug,name',
+        
             'lostItem.user:id,name', 'lostItem.primaryImage',
         ]));
     }

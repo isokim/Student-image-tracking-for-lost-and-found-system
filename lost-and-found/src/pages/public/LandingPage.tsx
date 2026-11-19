@@ -7,7 +7,7 @@ export function LandingPage() {
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-16">
       <p className="text-sm font-medium text-navy-700">Campus Lost &amp; Found</p>
       <h1 className="mt-2 text-3xl font-semibold text-text">
-        Report a lost item, or hand in something you found.
+        Report a lost item, or hand in something you found at the office.
       </h1>
       <p className="mt-3 max-w-xl text-text-muted">
         The office matches reports using descriptions and photos, so you don't have to check

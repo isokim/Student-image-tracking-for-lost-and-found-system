@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { CheckSquare, Home, PackageCheck } from "lucide-react";
+import { CheckSquare, Home, PackageCheck, PackagePlus } from "lucide-react";
 import { Sidebar, type NavItem } from "@/components/layout/Sidebar";
 import { TopNavigation } from "@/components/layout/TopNavigation";
 
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/staff/dashboard", icon: Home },
+  { label: "Report found item", href: "/staff/found-items/report", icon: PackagePlus },
   { label: "Found items", href: "/staff/found-items", icon: PackageCheck },
   { label: "Claims", href: "/staff/claims", icon: CheckSquare },
 ];

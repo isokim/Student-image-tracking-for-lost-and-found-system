@@ -89,11 +89,13 @@ export function StaffItemDetailPage() {
 
       {item.privateVerificationInfo && (
         <div className="rounded-lg border border-warning/30 bg-warning-bg p-4">
-          <h2 className="text-sm font-semibold text-warning">Private verification information</h2>
+          <h2 className="text-sm font-semibold text-warning">Hidden details recorded by the finder</h2>
           <p className="mt-1 text-sm text-text">{item.privateVerificationInfo}</p>
         </div>
       )}
 
+      {/* Verify only appears for older items still awaiting it; items
+          logged by staff are verified the moment they are saved. */}
       {item.status === "pending_verification" && (
         <div className="flex gap-3">
           <Button onClick={handleVerify} isLoading={isSubmitting}>
@@ -105,11 +107,22 @@ export function StaffItemDetailPage() {
         </div>
       )}
 
+      {item.status === "verified" && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="danger" onClick={() => setShowReject(true)} disabled={isSubmitting}>
+            Take down
+          </Button>
+          <p className="text-xs text-text-muted">
+            Removes it from the student board, e.g. if it was logged by mistake.
+          </p>
+        </div>
+      )}
+
       <Modal
         isOpen={showReject}
         onClose={() => setShowReject(false)}
-        title="Reject this report?"
-        description="Add a short reason — the student who reported it will see this."
+        title={item.status === "verified" ? "Take this item down?" : "Reject this report?"}
+        description="Add a short reason. It is kept on the item's history."
         size="sm"
         footer={
           <>

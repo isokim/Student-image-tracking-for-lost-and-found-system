@@ -25,10 +25,24 @@ class MatchScore
     ) {
     }
 
-    /** Below the configured floor, the pair is not worth showing anyone. */
+    /**
+     * Below the configured floor, the pair is not worth showing anyone.
+     *
+     * The total alone is not enough. Category, location, time and a
+     * blank colour (scored a neutral 0.5) describe the circumstances,
+     * not the object: a photoless "Gray Shirt" and "Blue Jacket", both
+     * clothing, both at the library, the same day, scored 0.525 with no
+     * word in common. So the pair must also share something about the
+     * object itself - a description word, or a strong visual likeness.
+     */
     public function meetsThreshold(): bool
     {
-        return $this->overall >= (float) config('matching.thresholds.minimum_score');
+        $describesSameObject = $this->text > 0.0
+            || ($this->image !== null
+                && $this->image >= (float) config('matching.thresholds.minimum_image_score', 0.75));
+
+        return $describesSameObject
+            && $this->overall >= (float) config('matching.thresholds.minimum_score');
     }
 
     /**

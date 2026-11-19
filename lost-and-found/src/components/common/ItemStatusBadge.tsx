@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Circle, Clock, PackageCheck, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import type { FoundItemStatus, LostItemStatus } from "@/types";
 
@@ -11,8 +11,11 @@ const lostConfig: Record<LostItemStatus, { label: string; tone: "neutral" | "suc
 
 const foundConfig: Record<FoundItemStatus, { label: string; tone: "neutral" | "success" | "warning" | "info" | "error"; icon: typeof Circle }> = {
   pending_verification: { label: "Pending verification", tone: "warning", icon: Clock },
-  verified: { label: "Verified", tone: "info", icon: CheckCircle2 },
-  claimed: { label: "Claimed", tone: "warning", icon: Clock },
+  // Display labels only - the status values themselves are unchanged.
+  verified: { label: "Available to claim", tone: "info", icon: CheckCircle2 },
+  // An approved claim is attached and the owner has yet to pick it up.
+  // PackageCheck rather than Clock, so it no longer looks like "pending".
+  claimed: { label: "Awaiting collection", tone: "warning", icon: PackageCheck },
   returned: { label: "Returned", tone: "success", icon: CheckCircle2 },
   rejected: { label: "Rejected", tone: "error", icon: XCircle },
 };

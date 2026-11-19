@@ -36,8 +36,7 @@ class LostItemService
             $item = new LostItem([
                 'category_id' => $this->resolveCategoryId($data['category']),
 
-                // The place as the student typed it - the only location
-                // there is now that the admin-managed list is gone.
+                // The place as the student typed it.
                 'location_text' => $data['location'],
 
                 'title' => $data['title'],
@@ -77,35 +76,16 @@ class LostItemService
             return $item;
         });
 
-        /**
-         * Dispatched AFTER the transaction commits, not inside it.
-         *
-         * A queue worker is a separate process. If the job were queued
-         * inside the transaction, the worker could pick it up and look
-         * for a row that has not been committed yet - an intermittent
-         * "item not found" that is painful to reproduce.
-         *
-         * It is queued, not run inline, because vision inference takes
-         * seconds and the student should not wait for it to see their
-         * report saved.
-         *
-         * And it is dispatched unconditionally, photo or not. This used
-         * to be guarded by `if ($item->images()->exists())`, which meant
-         * a report filed without a photo was never matched against
-         * anything, since ProcessItemImage is the only thing that
-         * dispatches FindPotentialMatches for a lost item. Plenty of
-         * students file without a picture, and text, category, location
-         * and time matching all work fine without one. ProcessItemImage
-         * handles the no-photo case by skipping straight to matching.
-         */
+        
         ProcessItemImage::dispatch($item->getMorphClass(), $item->id);
 
         return $item->fresh();
     }
 
+
+
     public function update(LostItem $item, array $data, User $actor): LostItem
-    {
-        DB::transaction(function () use ($item, $data, $actor) {
+    {         DB::transaction(function () use ($item, $data, $actor) {
             /**
              * Keyed on what the request actually sent, not on what is
              * non-null.

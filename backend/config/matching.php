@@ -65,12 +65,19 @@ return [
     |                  than "Possible match". Note there is deliberately no
     |                  threshold that claims certainty: a human approving a
     |                  claim is the only thing that confirms ownership.
+    | minimum_image_score - when the descriptions share no words, the
+    |                  photos must be at least this similar for the pair to
+    |                  count. Vector search always returns its nearest
+    |                  neighbours, however far away they are, so a raw
+    |                  cosine of 0.5-0.7 between unrelated photos is common
+    |                  and must not carry a match on its own.
     |
     */
 
     'thresholds' => [
         'minimum_score' => 0.45,
         'likely_score' => 0.75,
+        'minimum_image_score' => 0.75,
     ],
 
     /*

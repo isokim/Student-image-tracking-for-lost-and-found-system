@@ -76,21 +76,32 @@ class PolicyTest extends TestCase
     }
 
     // -----------------------------------------------------------------
-    // Found items: hidden until verified
+    // Found items: unverified ones are visible (so matches can point at
+    // them), rejected ones are hidden
     // -----------------------------------------------------------------
 
-    public function test_an_unverified_found_item_is_hidden_from_other_students(): void
+    public function test_an_unverified_found_item_is_visible_to_other_students(): void
     {
         $item = FoundItem::factory()->for_user($this->owner)->create(); // pending_verification
+
+        $this->assertTrue(Gate::forUser($this->owner)->allows('view', $item), 'the finder can see it');
+        $this->assertTrue(Gate::forUser($this->staff)->allows('view', $item), 'staff can see it');
+        $this->assertTrue(Gate::forUser($this->otherStudent)->allows('view', $item));
+        $this->assertFalse(Gate::forUser($this->otherStudent)->allows('claim', $item), 'but nobody can claim it yet');
+    }
+
+    public function test_a_rejected_found_item_is_hidden_from_other_students(): void
+    {
+        $item = FoundItem::factory()->for_user($this->owner)->create(['status' => 'rejected']);
 
         $this->assertTrue(Gate::forUser($this->owner)->allows('view', $item), 'the finder can see it');
         $this->assertTrue(Gate::forUser($this->staff)->allows('view', $item), 'staff can see it');
         $this->assertFalse(Gate::forUser($this->otherStudent)->allows('view', $item));
     }
 
-    public function test_hiding_an_unverified_item_returns_404_not_403_so_it_cannot_be_enumerated(): void
+    public function test_hiding_a_rejected_item_returns_404_not_403_so_it_cannot_be_enumerated(): void
     {
-        $item = FoundItem::factory()->for_user($this->owner)->create();
+        $item = FoundItem::factory()->for_user($this->owner)->create(['status' => 'rejected']);
 
         $response = Gate::forUser($this->otherStudent)->inspect('view', $item);
 
@@ -146,15 +157,6 @@ class PolicyTest extends TestCase
 
         // And the denial hides the record's existence.
         $this->assertSame(404, Gate::forUser($this->otherStudent)->inspect('view', $claim)->status());
-    }
-
-    public function test_a_claimant_cannot_see_the_expected_verification_answers(): void
-    {
-        $claim = Claim::factory()->create(['claimant_id' => $this->owner->id]);
-
-        // Knowing the expected answer would defeat the entire check.
-        $this->assertFalse(Gate::forUser($this->owner)->allows('viewVerificationAnswers', $claim));
-        $this->assertTrue(Gate::forUser($this->staff)->allows('viewVerificationAnswers', $claim));
     }
 
     public function test_a_student_cannot_review_a_claim(): void

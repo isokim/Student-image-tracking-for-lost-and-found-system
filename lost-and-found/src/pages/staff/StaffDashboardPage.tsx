@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { PackagePlus } from "lucide-react";
+import { buttonStyles } from "@/components/ui/Button";
 import { useQuery } from "@tanstack/react-query";
 import { foundItemService } from "@/features/found-items/foundItemService";
 import { claimService } from "@/features/claims/claimService";
@@ -14,14 +16,25 @@ export function StaffDashboardPage() {
     queryKey: ["found-items", "pending"],
     queryFn: () => foundItemService.list({ status: "pending_verification" }),
   });
-  const pendingClaims = useQuery({ queryKey: ["claims"], queryFn: claimService.list });
+  // Only claims still waiting on a decision - this section is the review
+  // queue, not the full history.
+  const pendingClaims = useQuery({
+    queryKey: ["claims", "pending_review"],
+    queryFn: () => claimService.listByStatus("pending_review"),
+  });
   const matches = useQuery({ queryKey: ["matches"], queryFn: matchService.list });
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-xl font-semibold text-text">Staff dashboard</h1>
-        <p className="mt-1 text-sm text-text-muted">Verification queue, claims to review, and return processing.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Staff dashboard</h1>
+          <p className="mt-1 text-sm text-text-muted">Verification queue, claims to review, and return processing.</p>
+        </div>
+        <Link to="/staff/found-items/report" className={buttonStyles("primary", "md")}>
+          <PackagePlus className="h-4 w-4" aria-hidden="true" />
+          Report found item
+        </Link>
       </div>
 
       <section className="flex flex-col gap-3">

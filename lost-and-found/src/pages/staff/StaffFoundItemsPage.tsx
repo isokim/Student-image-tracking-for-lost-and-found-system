@@ -32,7 +32,7 @@ export function StaffFoundItemsPage() {
     <div className="flex flex-col gap-6">
       <Breadcrumbs items={[{ label: "Found items" }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-text">Found item verification</h1>
+        <h1 className="text-xl font-semibold text-text">Found items</h1>
         <Link to="/staff/found-items/report" className={buttonStyles("primary", "md")}>
           <PackagePlus className="h-4 w-4" aria-hidden="true" />
           Report found item
@@ -49,7 +49,7 @@ export function StaffFoundItemsPage() {
           rows={data.data}
           rowKey={(row) => row.id}
           onRowClick={(row) => navigate(`/staff/items/${row.id}`)}
-          caption="Found items awaiting or completed verification"
+          caption="Found items logged at the office"
         />
       ) : (
         <EmptyState title="No found items reported" />

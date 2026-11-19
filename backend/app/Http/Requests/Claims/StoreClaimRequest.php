@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Claims;
 
+use App\Enums\LostItemStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,33 +21,40 @@ class StoreClaimRequest extends FormRequest
         return [
             'foundItemId' => ['required', Rule::exists('found_items', 'id')->whereNull('deleted_at')],
 
-            // Optional: the AI suggestion that prompted the claim.
+        
             'matchId' => ['nullable', Rule::exists('item_matches', 'id')],
 
-            // The claimant's proof-of-ownership narrative. A meaningful
-            // minimum length, because "it's mine" is not evidence staff
-            // can act on.
+        
+            'lostItemId' => [
+                'nullable',
+                Rule::exists('lost_items', 'id')
+                    ->where('user_id', $this->user()->id)
+                    ->whereIn('status', array_map(
+                        fn (LostItemStatus $s) => $s->value,
+                        array_filter(LostItemStatus::cases(), fn (LostItemStatus $s) => $s->isOpen()),
+                    ))
+                    ->whereNull('deleted_at'),
+            ],
+
+          
             'identifyingInformation' => ['required', 'string', 'min:20', 'max:2000'],
 
-            'verificationAnswers' => ['required', 'array', 'min:1', 'max:10'],
+            
+            'verificationAnswers' => ['sometimes', 'nullable', 'array', 'max:10'],
             'verificationAnswers.*.question' => ['required', 'string', 'max:255'],
             'verificationAnswers.*.answer' => ['required', 'string', 'max:1000'],
 
-            /**
-             * Note what is NOT accepted here: expectedAnswer, result, or
-             * status. A claimant supplying their own "expected answer" or
-             * posting status=approved would defeat the whole review step,
-             * so those keys are never validated and therefore never reach
-             * the model - reinforced by Claim::$fillable.
-             */
+           
         ];
     }
+
+
 
     public function messages(): array
     {
         return [
-            'identifyingInformation.min' => 'Please describe the item in enough detail for staff to confirm it is yours.',
-            'verificationAnswers.required' => 'Please answer the verification questions.',
+            'identifyingInformation.min' => 'Please give at least 20 characters of detail that proves the item is yours.',
+            'lostItemId.exists' => 'Choose one of your own open lost reports, or say you did not report it lost.',
         ];
     }
 
@@ -54,7 +62,8 @@ class StoreClaimRequest extends FormRequest
     {
         return [
             'foundItemId' => 'item',
-            'identifyingInformation' => 'identifying information',
+            'lostItemId' => 'lost report',
+            'identifyingInformation' => "details that prove it's yours",
         ];
     }
 }

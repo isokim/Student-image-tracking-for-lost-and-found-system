@@ -52,16 +52,6 @@ class ClaimPolicy
         return Response::denyAsNotFound();
     }
 
-    /**
-     * Only reviewing staff may read the expected answers stored against
-     * the verification questions. The claimant must never see them - the
-     * whole point is that they had to know the answer already.
-     */
-    public function viewVerificationAnswers(User $user, Claim $claim): bool
-    {
-        return $user->canActAsStaff();
-    }
-
     public function create(User $user): bool
     {
         return true;

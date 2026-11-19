@@ -27,13 +27,7 @@ class LoginRequest extends FormRequest
         ];
     }
 
-    /**
-     * Attempt to authenticate, with brute-force protection.
-     *
-     * The rate limit key combines email and IP, so one attacker hammering
-     * many passwords against one account gets locked out without also
-     * locking every other user out of that account from their own device.
-     */
+   
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
@@ -58,6 +52,8 @@ class LoginRequest extends FormRequest
 
         RateLimiter::clear($this->throttleKey());
     }
+
+
 
     protected function ensureIsNotRateLimited(): void
     {

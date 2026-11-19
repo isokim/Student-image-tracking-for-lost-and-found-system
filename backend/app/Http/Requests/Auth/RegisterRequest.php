@@ -10,7 +10,7 @@ use Illuminate\Validation\Rules\Password;
  *
  * SECURITY: there is no `role` rule here, and that is deliberate. Because
  * the controller only ever uses validated() data, a request containing
- * "role":"admin" has that key dropped before it reaches the model - it is
+ * "role":"staff" has that key dropped before it reaches the model - it is
  * not validated, so it is not returned. The User model's $fillable is the
  * second layer, and the controller assigning UserRole::Student explicitly
  * is the third. Any one of the three would stop the attack.
@@ -52,12 +52,7 @@ class RegisterRequest extends FormRequest
         ];
     }
 
-    /**
-     * The React app sends camelCase (`admissionNumber`,
-     * `passwordConfirmation`) but Laravel's `confirmed` rule looks for
-     * `password_confirmation`. Normalising here keeps the camelCase
-     * contract in the API without fighting the framework's conventions.
-     */
+
     protected function prepareForValidation(): void
     {
         if ($this->has('passwordConfirmation')) {

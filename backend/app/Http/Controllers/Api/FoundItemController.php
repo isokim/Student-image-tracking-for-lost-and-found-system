@@ -8,6 +8,7 @@ use App\Http\Requests\Items\RejectFoundItemRequest;
 use App\Http\Requests\Items\StoreFoundItemRequest;
 use App\Http\Requests\Items\UpdateFoundItemRequest;
 use App\Http\Resources\FoundItemResource;
+use App\Models\Category;
 use App\Models\FoundItem;
 use App\Services\FoundItemService;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,29 @@ class FoundItemController extends Controller
     {
         $this->authorize('viewAny', FoundItem::class);
 
+        // Optional filters for the browse page. Both may be empty.
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:150'],
+            'category' => ['nullable', 'string', 'max:50'],
+        ]);
+
         $query = FoundItem::query()->withApiRelations();
+
+        if (! empty($filters['q'])) {
+            // Same escaping as SearchService: bound parameter, with LIKE
+            // wildcards in the user's text neutralised.
+            $term = '%'.addcslashes($filters['q'], '%_\\').'%';
+
+            $query->where(fn ($q) => $q->where('title', 'like', $term)
+                ->orWhere('description', 'like', $term)
+                ->orWhere('location_text', 'like', $term));
+        }
+
+        if (! empty($filters['category'])) {
+            // An unknown slug returns nothing, not everything.
+            $categoryId = Category::where('slug', $filters['category'])->value('id');
+            $query->where('category_id', $categoryId ?? -1);
+        }
 
         if ($request->user()->canActAsStaff()) {
             $query->when(
